@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test APIs</title>
+  <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background-color: #f8f9fa;
+        }
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 500px;
+            margin: auto;
+            box-shadow: 0 0 10px #ccc;
+        }
+        textarea, select, button {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .result {
+            margin-top: 20px;
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+  <h2>Resume Upload</h2>
+  <form id="uploadForm">
+    <input type="file" id="resume" />
+    <button type="submit">Upload</button>
+  </form>
+  <pre id="resumeResult"></pre>
+
+<h2>Translate Content</h2>
+<form method="POST", value="translator", name="form_type">
+    <label for="text">Enter English Text:</label>
+    <textarea name="text" rows="4" required>{{ original_text }}</textarea>
+
+    <label for="target_lang">Select Language:</label>
+    <select name="target_lang">
+        {% for code, name in languages.items() %}
+            <option value="{{ code }}" {% if selected_language == code %}selected{% endif %}>{{ code }}</option>
+        {% endfor %}
+    </select>
+
+    <button type="submit">Translate</button>
+
+    {% if translated_text %}
+    <div class="result">
+        <strong>Translated:</strong>
+        <p>{{ translated_text }}</p>
+    </div>
+    {% endif %}
+</form>
+
+   <h2>Currency Converter (Form Submit to /currency)</h2>
+<form method="POST" action="/currency", value="currency", name="form_type">
+    <label for="usd_amount">Amount in USD:</label>
+    <input type="number" step="any" name="usd_amount" value="{{ usd_amount or '' }}" required><br><br>
+
+    <label for="currency">Currency:</label>
+    <select name="currency">
+        {% for currency in currencies %}
+            <option value="{{ currency }}" {% if selected_currency == currency %}selected{% endif %}>
+                {{ currency }}
+            </option>
+        {% endfor %}
+    </select><br><br>
+
+    <button type="submit">Convert</button>
+</form>
+
+{% if converted_price %}
+<div class="result">
+    <strong>Converted Price:</strong>
+    <p>{{ converted_price }}</p>
+</div>
+{% endif %}
+
+<script>
+document.getElementById("uploadForm").onsubmit = async function(e) {
+  e.preventDefault();
+  const fileInput = document.getElementById("resume");
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  const res = await fetch("/upload", {
+    method: "POST",
+    body: formData
+  });
+  const data = await res.json();
+  document.getElementById("resumeResult").textContent = JSON.stringify(data, null, 2);
+};
+
+async function translate() {
+  const text = document.getElementById("text").value;
+  const lang = document.getElementById("lang").value;
+
+  const res = await fetch("/translate", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ content: text, lang: lang })
+  });
+  const data = await res.json();
+  document.getElementById("translateResult").textContent = JSON.stringify(data, null, 2);
+}
+
+async function checkPrice() {
+  const country = document.getElementById("country").value;
+  const res = await fetch(`/price?country=${country}`);
+  const data = await res.json();
+  document.getElementById("priceResult").textContent = JSON.stringify(data, null, 2);
+}
+
+// main.js
+
+// Price API
+async function checkPrice() {
+  const currency = document.getElementById("currency_api").value;
+  const amount = document.getElementById("usd_amount_api").value || 100;
+  try {
+    const res = await fetch(`/price?currency=${encodeURIComponent(currency)}&amount=${encodeURIComponent(amount)}`);
+    const data = await res.json();
+    document.getElementById("priceResult").textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    document.getElementById("priceResult").textContent = `Error: ${err.message}`;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("priceForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    checkPrice();
+  });
+
+  document.getElementById("translateBtn")?.addEventListener("click", async () => {
+    const text = document.getElementById("sourceText").value;
+    const lang = document.getElementById("targetLang").value;
+    try {
+      const res = await fetch(`/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, target_language: lang })
+      });
+      const data = await res.json();
+      document.getElementById("translationResult").textContent = JSON.stringify(data, null, 2);
+    } catch (err) {
+      document.getElementById("translationResult").textContent = `Error: ${err.message}`;
+    }
+  });
+
+  document.getElementById("parseResumeBtn")?.addEventListener("click", async () => {
+    const fileInput = document.getElementById("resumeFile");
+    if (!fileInput.files.length) {
+      alert("Please choose a file.");
+      return;
+    }
+    const formData = new FormData();
+    formData.append("resume", fileInput.files[0]);
+
+    try {
+      const res = await fetch("/parse_resume", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      document.getElementById("resumeResult").textContent = JSON.stringify(data, null, 2);
+    } catch (err) {
+      document.getElementById("resumeResult").textContent = `Error: ${err.message}`;
+    }
+  });
+});
+
+</script>
+</body>
+</html>

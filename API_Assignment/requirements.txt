@@ -1,0 +1,6 @@
+Flask
+Flask-CORS
+libretranslate
+forex-python
+requests
+translate   
